@@ -11,18 +11,37 @@ public class MealPlanner {
     public void run() {
         createTablesIfNotExist();
         Scanner scanner = new Scanner(System.in);
+
         while (true) {
             System.out.println("What would you like to do (add, show, exit)?");
             String operation = scanner.nextLine();
+
             if (operation.equalsIgnoreCase("exit")) {
                 System.out.println("Bye!");
                 break;
             } else if (operation.equalsIgnoreCase("add")) {
                 addMeal();
             } else if (operation.equalsIgnoreCase("show")) {
-                printAllMeals();
+                System.out.println("Which category do you want to print (breakfast, lunch, dinner)?");
+                boolean isValidCategory = false;
+                String category = "";
+
+                while (!isValidCategory) {
+                    category = scanner.nextLine().strip().toUpperCase();
+                    if (EnumUtils.isValidEnum(MealCategory.class, category)) {
+                        category = category.toLowerCase();
+                        isValidCategory = true;
+                    } else {
+                        System.out.println("Wrong meal category! Choose from: breakfast, lunch, dinner.");
+                    }
+                }
+                printMealsByCategory(category);
             }
         }
+    }
+
+    private enum MealCategory {
+        BREAKFAST, LUNCH, DINNER
     }
 
     private void createTablesIfNotExist() {
@@ -47,7 +66,7 @@ public class MealPlanner {
         }
     }
 
-    public void addMeal() {
+    private void addMeal() {
         Scanner scanner = new Scanner(System.in);
 
         String mealCategory;
@@ -148,7 +167,8 @@ public class MealPlanner {
         }
     }
 
-    public void printAllMeals() {
+    @SuppressWarnings("unused")
+    private static void printAllMeals() {
         try (Connection connection = DbConnection.connect();
              Statement statement = connection.createStatement()) {
             String query = "SELECT m.meal, m.category, i.ingredient, i.meal_id " +
@@ -189,6 +209,53 @@ public class MealPlanner {
         }
     }
 
+    private static void printMealsByCategory(String validCategory) {
+        try (ResultSet rs = DbConnection.connect().createStatement().executeQuery(
+                "SELECT m.meal, m.category, i.ingredient, i.meal_id " +
+                        "FROM meals m " +
+                        "JOIN ingredients i ON m.meal_id = i.meal_id " +
+                        "WHERE m.category LIKE '" + validCategory + "'" +
+                        "ORDER BY m.meal_id;")) {
+            if (!rs.isBeforeFirst()) {
+                System.out.println("No meals found.");
+                return;
+            }
+            System.out.println("Category: " + validCategory + "\n");
+            String previousMealName = "";
+            ArrayList<String> ingredientsList = new ArrayList<>();
+
+            while (rs.next()) {
+                String mealName = rs.getString("meal");
+                String ingredient = rs.getString("ingredient");
+
+                if (!mealName.equals(previousMealName)) {
+                    if (!previousMealName.isEmpty()) {
+                        printMealDetails(previousMealName, ingredientsList);
+                        System.out.println();
+                    }
+                    previousMealName = mealName;
+                    ingredientsList = new ArrayList<>();
+                }
+                ingredientsList.add(ingredient);
+            }
+
+            if (!previousMealName.isEmpty()) {
+                printMealDetails(previousMealName, ingredientsList);
+                System.out.println();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void printMealDetails(String mealName, ArrayList<String> ingredientsList) {
+        System.out.println("Name: " + mealName);
+        System.out.println("Ingredients:");
+        for (String ingredient : ingredientsList) {
+            System.out.print(ingredient + "\n");
+        }
+    }
+
     private static void printMealDetails(String mealName, String category, ArrayList<String> ingredientsList) {
         System.out.println("Category: " + category);
         System.out.println("Name: " + mealName);
@@ -197,5 +264,4 @@ public class MealPlanner {
             System.out.print(ingredient + "\n");
         }
     }
-
 }
