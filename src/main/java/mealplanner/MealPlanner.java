@@ -1,19 +1,26 @@
 package mealplanner;
 
 import org.apache.commons.lang3.EnumUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.sql.*;
+import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
 
 public class MealPlanner {
     public void run() {
-        createTablesIfNotExist();
-        Scanner scanner = new Scanner(System.in);
+        Connection connection = DbConnection.connect();
+        try {
+            connection.createStatement().executeUpdate(SQLQueries.createTablesIfNotExist());
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
 
+        Scanner scanner = new Scanner(System.in);
         while (true) {
-            System.out.println("What would you like to do (add, show, exit)?");
+            System.out.println("What would you like to do (add, show, plan, exit)?");
             String operation = scanner.nextLine();
 
             if (operation.equalsIgnoreCase("exit")) {
@@ -21,6 +28,8 @@ public class MealPlanner {
                 break;
             } else if (operation.equalsIgnoreCase("add")) {
                 addMeal();
+            } else if (operation.equalsIgnoreCase("plan")) {
+                plan();
             } else if (operation.equalsIgnoreCase("show")) {
                 System.out.println("Which category do you want to print (breakfast, lunch, dinner)?");
                 boolean isValidCategory = false;
@@ -38,35 +47,82 @@ public class MealPlanner {
                 Printer.printMealsByCategory(category);
             }
         }
+        DbConnection.finalize(connection);
+    }
+
+    private void plan() {
+        Connection connection = DbConnection.connect();
+        Scanner scanner = new Scanner(System.in);
+
+        for (DayOfWeek dayOfWeek : DayOfWeek.values()) {
+            String day = StringUtils.capitalize(dayOfWeek.toString().toLowerCase());
+            System.out.println(day);
+
+            for (MealCategory mc : MealCategory.values()) {
+                final String mealCategory = mc.toString().toLowerCase();
+
+                try (ResultSet rs = connection.createStatement().executeQuery
+                        (SQLQueries.getMealsByCategory(mealCategory))) {
+                    if (!rs.isBeforeFirst()) {
+                        System.out.println("No meals");  // edit later
+                    } else {
+                        while (rs.next()) {
+                            System.out.println(rs.getString("meal"));
+                        }
+
+                        String mealName = "";
+                        boolean nameExistsInDb = false;
+                        System.out.println("Choose the " + mealCategory + " for "
+                                + day + " from the list above:");
+                        while (!nameExistsInDb) {
+                            mealName = scanner.nextLine();
+
+                            // Check if meal name is in database
+                            PreparedStatement nameCheck =
+                                    connection.prepareStatement(SQLQueries.getNumberOfMealsByName());
+                            nameCheck.setString(1, mealName);
+                            ResultSet numberOfNames = nameCheck.executeQuery();
+                            numberOfNames.next();
+                            if (numberOfNames.getInt("count") == 0) {
+                                System.out.println("This meal doesn't exist. Choose a meal from the list above.");
+                            } else {
+                                nameExistsInDb = true;
+                            }
+                        }
+
+                        PreparedStatement insertStatement =
+                                connection.prepareStatement(SQLQueries.insertIntoPlan());
+                        insertStatement.setString(1, mealCategory);
+                        insertStatement.setString(2, mealName);
+
+                        ResultSet mealIdQuery = connection.createStatement()
+                                .executeQuery(SQLQueries.getMealIdByMealName(mealName));
+                        int mealId;
+                        if (mealIdQuery.next()) {
+                            mealId = mealIdQuery.getInt(SQLQueries.MEAL_ID);
+                        } else {
+                            throw new RuntimeException();
+                        }
+
+                        insertStatement.setInt(3, mealId);
+                        insertStatement.executeUpdate();
+                    }
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            System.out.println("Yeah! We planned the meals for " + day + ".");
+        }
+        Printer.printPlan();
+        DbConnection.finalize(connection);
     }
 
     private enum MealCategory {
         BREAKFAST, LUNCH, DINNER
     }
 
-    private void createTablesIfNotExist() {
-        try {
-            Connection connection = DbConnection.connect();
-            connection.createStatement().executeUpdate("""
-                    CREATE TABLE IF NOT EXISTS meals (
-                        category VARCHAR,
-                        meal VARCHAR,
-                        meal_id INTEGER,
-                        CONSTRAINT unique_meals UNIQUE (meal, meal_id)
-                    );
-                                        
-                    CREATE TABLE IF NOT EXISTS ingredients (
-                        ingredient VARCHAR,
-                        ingredient_id INTEGER,
-                        meal_id INTEGER
-                    );
-                    """);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     private void addMeal() {
+        Connection connection = DbConnection.connect();
         Scanner scanner = new Scanner(System.in);
 
         String mealCategory;
@@ -112,58 +168,55 @@ public class MealPlanner {
         }
 
         int mealCount = 0;
-        try (ResultSet rs = DbConnection.connect().createStatement().executeQuery("SELECT COUNT(meal_id) FROM meals;")) {
+        try (ResultSet rs = connection.createStatement().executeQuery(SQLQueries.getNumberOfMeals())) {
             if (rs.next()) {
-                mealCount = rs.getInt(1); // Assuming the count is in the first column
+                mealCount = rs.getInt(1);
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
 
         int ingredientId;
-        String mealQuery = "INSERT INTO meals (category, meal, meal_id) VALUES (?, ?, ?)";
-        String ingredientQuery = "INSERT INTO ingredients (ingredient, ingredient_id, meal_id) VALUES (?, ?, ?)";
+        try (PreparedStatement mealStmt = connection.prepareStatement(SQLQueries.insertIntoMeals());
+             PreparedStatement ingredientStmt = connection.prepareStatement(SQLQueries.insertIntoIngredients())) {
 
-        try (Connection connection = DbConnection.connect()) {
-            try (PreparedStatement mealStmt = connection.prepareStatement(mealQuery);
-                 PreparedStatement ingredientStmt = connection.prepareStatement(ingredientQuery)) {
+            mealStmt.setString(1, mealCategory.toLowerCase());
+            mealStmt.setString(2, mealName.toLowerCase());
+            mealStmt.setInt(3, mealCount + 1);
+            mealStmt.executeUpdate();
 
-                mealStmt.setString(1, mealCategory.toLowerCase());
-                mealStmt.setString(2, mealName.toLowerCase());
-                mealStmt.setInt(3, mealCount + 1);
-                mealStmt.executeUpdate();
+            for (String ingredient : ingredients) {
+                ingredientStmt.setString(1, ingredient);
+                ingredientStmt.setInt(3, mealCount + 1);
 
-                for (String ingredient : ingredients) {
-                    ingredientStmt.setString(1, ingredient);
-                    ingredientStmt.setInt(3, mealCount + 1);
+                // Check if the ingredient already exists in the database
+                try (PreparedStatement ingredientCheckStmt =
+                             connection.prepareStatement(SQLQueries.getIngredientIdByName())) {
 
-                    // Check if the ingredient already exists in the database
-                    String ingredientCheckQuery = "SELECT ingredient_id FROM ingredients WHERE ingredient LIKE ?";
-                    try (PreparedStatement ingredientCheckStmt = connection.prepareStatement(ingredientCheckQuery)) {
-                        ingredientCheckStmt.setString(1, ingredient);
-                        ResultSet ingredientCheckResult = ingredientCheckStmt.executeQuery();
+                    ingredientCheckStmt.setString(1, ingredient);
+                    ResultSet ingredientCheckResult = ingredientCheckStmt.executeQuery();
 
-                        if (ingredientCheckResult.next()) {
-                            // Ingredient with the same name exists, use the existing ingredient_id
-                            ingredientId = ingredientCheckResult.getInt(1);
-                        } else {
-                            // Generate a new ingredient_id
-                            ResultSet ingredientCountResult = connection.createStatement()
-                                    .executeQuery("SELECT COUNT(DISTINCT ingredient) FROM ingredients");
-                            int ingredientCount = 0;
-                            if (ingredientCountResult.next()) {
-                                ingredientCount = ingredientCountResult.getInt(1);
-                            }
-                            ingredientId = ingredientCount + 1;
+                    if (ingredientCheckResult.next()) {
+                        // Ingredient with the same name exists, use the existing ingredient_id
+                        ingredientId = ingredientCheckResult.getInt(1);
+                    } else {
+                        // Generate a new ingredient_id
+                        ResultSet ingredientCountResult = connection.createStatement()
+                                .executeQuery(SQLQueries.getNumberOfIngredients());
+                        int ingredientCount = 0;
+                        if (ingredientCountResult.next()) {
+                            ingredientCount = ingredientCountResult.getInt(1);
                         }
+                        ingredientId = ingredientCount + 1;
                     }
-                    ingredientStmt.setInt(2, ingredientId);
-                    ingredientStmt.executeUpdate();
                 }
-                System.out.println("The meal has been added!");
+                ingredientStmt.setInt(2, ingredientId);
+                ingredientStmt.executeUpdate();
             }
+            System.out.println("The meal has been added!");
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+        DbConnection.finalize(connection);
     }
 }

@@ -9,7 +9,7 @@ public class DbConnection {
     private static final String USER = "postgres";
     private static final String PASSWORD = "1111";
 
-    public static Connection connect() {
+    static Connection connect() {
         Connection connection;
         try {
             connection = DriverManager.getConnection(URL, USER, PASSWORD);
@@ -17,5 +17,13 @@ public class DbConnection {
             throw new RuntimeException(e);
         }
         return connection;
+    }
+
+    static void finalize(Connection connection) {
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

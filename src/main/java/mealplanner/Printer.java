@@ -1,30 +1,28 @@
 package mealplanner;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
+import java.time.DayOfWeek;
 import java.util.ArrayList;
 
 public class Printer {
     @SuppressWarnings("unused")
     static void printAllMeals() {
-        try (Connection connection = DbConnection.connect();
-             Statement statement = connection.createStatement()) {
-            String query = "SELECT m.meal, m.category, i.ingredient, i.meal_id " +
-                    "FROM meals m " +
-                    "JOIN ingredients i ON m.meal_id = i.meal_id " +
-                    "ORDER BY m.meal_id";
-            ResultSet resultSet = statement.executeQuery(query);
-
+        Connection connection = DbConnection.connect();
+        try {
+            ResultSet resultSet = connection.createStatement()
+                    .executeQuery(SQLQueries.getMealsAndIngredients());
             String previousMealName = "";
             String previousCategory = "";
             ArrayList<String> ingredientsList = new ArrayList<>();
 
             while (resultSet.next()) {
-                String mealName = resultSet.getString("meal");
-                String category = resultSet.getString("category");
-                String ingredient = resultSet.getString("ingredient");
+                String mealName = resultSet.getString(SQLQueries.MEAL);
+                String category = resultSet.getString(SQLQueries.CATEGORY);
+                String ingredient = resultSet.getString(SQLQueries.INGREDIENT);
 
                 if (!mealName.equals(previousMealName)) {
                     if (!previousMealName.isEmpty()) {
@@ -35,7 +33,6 @@ public class Printer {
                     previousCategory = category;
                     ingredientsList = new ArrayList<>();
                 }
-
                 ingredientsList.add(ingredient);
             }
 
@@ -47,15 +44,13 @@ public class Printer {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+        DbConnection.finalize(connection);
     }
 
     static void printMealsByCategory(String validCategory) {
-        try (ResultSet rs = DbConnection.connect().createStatement().executeQuery(
-                "SELECT m.meal, m.category, i.ingredient, i.meal_id " +
-                        "FROM meals m " +
-                        "JOIN ingredients i ON m.meal_id = i.meal_id " +
-                        "WHERE m.category LIKE '" + validCategory + "'" +
-                        "ORDER BY m.meal_id;")) {
+        Connection connection = DbConnection.connect();
+        try (ResultSet rs = connection.createStatement()
+                .executeQuery(SQLQueries.getMealsAndIngredientsByCategory(validCategory))) {
             if (!rs.isBeforeFirst()) {
                 System.out.println("No meals found.");
                 return;
@@ -65,8 +60,8 @@ public class Printer {
             ArrayList<String> ingredientsList = new ArrayList<>();
 
             while (rs.next()) {
-                String mealName = rs.getString("meal");
-                String ingredient = rs.getString("ingredient");
+                String mealName = rs.getString(SQLQueries.MEAL);
+                String ingredient = rs.getString(SQLQueries.INGREDIENT);
 
                 if (!mealName.equals(previousMealName)) {
                     if (!previousMealName.isEmpty()) {
@@ -86,6 +81,28 @@ public class Printer {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+        DbConnection.finalize(connection);
+    }
+
+    static void printPlan() {
+        Connection connection = DbConnection.connect();
+        try {
+            ResultSet rs = connection.createStatement().executeQuery(SQLQueries.getMealsFromPlan());
+            int dayCounter = 1;
+            while (rs.next()) {
+                String category = rs.getString(SQLQueries.CATEGORY);
+                String meal = rs.getString(SQLQueries.MEAL);
+
+                if (category.equalsIgnoreCase("breakfast")) {
+                    System.out.println();
+                    System.out.println(DayOfWeek.of(dayCounter++));
+                }
+                System.out.println(StringUtils.capitalize(category) + ": " + meal);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        DbConnection.finalize(connection);
     }
 
     private static void printMealDetails(String mealName, ArrayList<String> ingredientsList) {
