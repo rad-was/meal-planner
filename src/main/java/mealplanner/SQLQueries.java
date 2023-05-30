@@ -32,7 +32,7 @@ class SQLQueries {
                 MEAL, MEALS);
     }
 
-    static String getMealsFromPlan() {
+    static String getCategoriesMealsFromPlan() {
         return MessageFormat.format(
                 "SELECT {0}, {1} FROM {2};", CATEGORY, MEAL, PLAN);
     }
@@ -71,6 +71,25 @@ class SQLQueries {
                         "WHERE m.{1} LIKE ''{6}'' " +
                         "ORDER BY m.{3};",
                 MEAL, CATEGORY, INGREDIENT, MEAL_ID, MEALS, INGREDIENTS, category);
+    }
+
+    static String getNumberOfMealsFromPlan() {
+        return MessageFormat.format(
+                "SELECT COUNT({0}) FROM {1};", MEAL, PLAN);
+    }
+
+    static String getIngredientsAndCountFromPlan() {
+        // SELECT i.ingredient, COUNT(*) AS ingredient_count
+        // FROM ingredients i
+        //         JOIN meals m ON i.meal_id = m.meal_id
+        //         JOIN plan p ON m.meal_id = p.meal_id
+        // GROUP BY i.ingredient;
+        return MessageFormat.format(
+                "SELECT i.{0}, COUNT(*) AS count FROM {1} i " +
+                        "JOIN {2} m ON i.{3} = m.{3} " +
+                        "JOIN {4} p ON m.{3} = p.{3} " +
+                        "GROUP BY i.{0};",
+                INGREDIENT, INGREDIENTS, MEALS, MEAL_ID, PLAN);
     }
 
     static String insertIntoMeals() {

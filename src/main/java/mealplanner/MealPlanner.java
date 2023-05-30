@@ -3,6 +3,10 @@ package mealplanner;
 import org.apache.commons.lang3.EnumUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.sql.*;
 import java.time.DayOfWeek;
 import java.util.ArrayList;
@@ -20,17 +24,33 @@ public class MealPlanner {
 
         Scanner scanner = new Scanner(System.in);
         while (true) {
-            System.out.println("What would you like to do (add, show, plan, exit)?");
+            System.out.println("What would you like to do (add, show, plan, save, exit)?");
             String operation = scanner.nextLine();
 
-            if (operation.equalsIgnoreCase("exit")) {
+            if (operation.strip().equalsIgnoreCase("exit")) {
                 System.out.println("Bye!");
                 break;
-            } else if (operation.equalsIgnoreCase("add")) {
+            } else if (operation.strip().equalsIgnoreCase("add")) {
                 addMeal();
-            } else if (operation.equalsIgnoreCase("plan")) {
+            } else if (operation.strip().equalsIgnoreCase("plan")) {
                 plan();
-            } else if (operation.equalsIgnoreCase("show")) {
+            } else if (operation.strip().equalsIgnoreCase("save")) {
+                // Check if weekly plan was created
+                try {
+                    ResultSet numberOfMealsQuery =
+                            connection.createStatement().executeQuery(SQLQueries.getNumberOfMealsFromPlan());
+                    if (numberOfMealsQuery.next()) {
+                        int numberOfMeals = numberOfMealsQuery.getInt("count");
+                        if (numberOfMeals == (3 * 7)) {  // 3 meals every day of the week
+                            save();
+                        } else {
+                            System.out.println("Unable to save. Plan your meals first.");
+                        }
+                    }
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            } else if (operation.strip().equalsIgnoreCase("show")) {
                 System.out.println("Which category do you want to print (breakfast, lunch, dinner)?");
                 boolean isValidCategory = false;
                 String category = "";
@@ -64,7 +84,7 @@ public class MealPlanner {
                 try (ResultSet rs = connection.createStatement().executeQuery
                         (SQLQueries.getMealsByCategory(mealCategory))) {
                     if (!rs.isBeforeFirst()) {
-                        System.out.println("No meals");  // edit later
+                        System.out.println("No meals");
                     } else {
                         while (rs.next()) {
                             System.out.println(rs.getString("meal"));
@@ -217,6 +237,38 @@ public class MealPlanner {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+        DbConnection.finalize(connection);
+    }
+
+    private void save() {
+        Connection connection = DbConnection.connect();
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Input a filename:");
+        String filename = scanner.nextLine();
+
+        try {
+            File file = new File(filename);
+            BufferedWriter bw = new BufferedWriter(new FileWriter(file));
+
+            ResultSet ingredientAndCountQuery = connection.createStatement()
+                    .executeQuery(SQLQueries.getIngredientsAndCountFromPlan());
+            while (ingredientAndCountQuery.next()) {
+                String ingredient = ingredientAndCountQuery.getString(SQLQueries.INGREDIENT);
+                int ingredientCount = ingredientAndCountQuery.getInt("count");
+
+                if (ingredientCount == 1) {
+                    bw.write(ingredient);
+                    bw.newLine();
+                } else {
+                    bw.write(ingredient + " x" + ingredientCount);
+                    bw.newLine();
+                }
+            }
+            bw.close();
+        } catch (SQLException | IOException e) {
+            throw new RuntimeException(e);
+        }
+        System.out.println("Saved!");
         DbConnection.finalize(connection);
     }
 }

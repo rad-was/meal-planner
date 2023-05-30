@@ -87,7 +87,7 @@ public class Printer {
     static void printPlan() {
         Connection connection = DbConnection.connect();
         try {
-            ResultSet rs = connection.createStatement().executeQuery(SQLQueries.getMealsFromPlan());
+            ResultSet rs = connection.createStatement().executeQuery(SQLQueries.getCategoriesMealsFromPlan());
             int dayCounter = 1;
             while (rs.next()) {
                 String category = rs.getString(SQLQueries.CATEGORY);
