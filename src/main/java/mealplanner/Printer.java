@@ -20,9 +20,9 @@ public class Printer {
             ArrayList<String> ingredientsList = new ArrayList<>();
 
             while (resultSet.next()) {
-                String mealName = resultSet.getString(SQLQueries.MEAL);
-                String category = resultSet.getString(SQLQueries.CATEGORY);
-                String ingredient = resultSet.getString(SQLQueries.INGREDIENT);
+                String mealName = resultSet.getString("meal");
+                String category = resultSet.getString("category");
+                String ingredient = resultSet.getString("ingredient");
 
                 if (!mealName.equals(previousMealName)) {
                     if (!previousMealName.isEmpty()) {
@@ -60,8 +60,8 @@ public class Printer {
             ArrayList<String> ingredientsList = new ArrayList<>();
 
             while (rs.next()) {
-                String mealName = rs.getString(SQLQueries.MEAL);
-                String ingredient = rs.getString(SQLQueries.INGREDIENT);
+                String mealName = rs.getString("meal");
+                String ingredient = rs.getString("ingredient");
 
                 if (!mealName.equals(previousMealName)) {
                     if (!previousMealName.isEmpty()) {
@@ -90,8 +90,8 @@ public class Printer {
             ResultSet rs = connection.createStatement().executeQuery(SQLQueries.getCategoriesMealsFromPlan());
             int dayCounter = 1;
             while (rs.next()) {
-                String category = rs.getString(SQLQueries.CATEGORY);
-                String meal = rs.getString(SQLQueries.MEAL);
+                String category = rs.getString("category");
+                String meal = rs.getString("meal");
 
                 if (category.equalsIgnoreCase("breakfast")) {
                     System.out.println();

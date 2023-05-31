@@ -3,136 +3,108 @@ package mealplanner;
 import java.text.MessageFormat;
 
 class SQLQueries {
-    // DB Table Names
-    static final String MEALS = "meals";
-    static final String INGREDIENTS = "ingredients";
-    static final String PLAN = "plan";
-
-    // DB Column Names
-    static final String MEAL = "meal";
-    static final String MEAL_ID = "meal_id";
-    static final String CATEGORY = "category";
-    static final String INGREDIENT = "ingredient";
-    static final String INGREDIENT_ID = "ingredient_id";
-
     static String getMealsByCategory(String mealCategory) {
         return MessageFormat.format(
-                "SELECT {0}, {1} FROM {2} WHERE {3} LIKE ''{4}'' ORDER BY {0};",
-                MEAL, MEAL_ID, MEALS, CATEGORY, mealCategory);
+                "SELECT meal, meal_id FROM meals WHERE category LIKE ''{0}'' ORDER BY meal;",
+                mealCategory);
     }
 
-    static String getNumberOfMeals() {
-        return MessageFormat.format(
-                "SELECT COUNT({0}) FROM {1};", MEAL_ID, MEALS);
+    static String countMeals() {
+        return "SELECT COUNT(meal_id) FROM meals;";
     }
 
-    static String getNumberOfMealsByName() {
-        return MessageFormat.format(
-                "SELECT COUNT({0}) FROM {1} WHERE {0} LIKE ?;",
-                MEAL, MEALS);
+    static String countMealsByName() {
+        return "SELECT COUNT(meal) FROM meals WHERE meal LIKE ?;";
     }
 
     static String getCategoriesMealsFromPlan() {
-        return MessageFormat.format(
-                "SELECT {0}, {1} FROM {2};", CATEGORY, MEAL, PLAN);
+        return "SELECT category, meal FROM plan;";
     }
 
-    static String getNumberOfIngredients() {
-        return MessageFormat.format(
-                "SELECT COUNT(DISTINCT {0}) FROM {1};", INGREDIENT, INGREDIENTS);
+    static String countIngredients() {
+        return "SELECT COUNT(DISTINCT ingredient) FROM ingredients;";
     }
 
     static String getIngredientIdByName() {
-        return MessageFormat.format(
-                "SELECT {0} FROM {1} WHERE {2} LIKE ?;",
-                INGREDIENT_ID, INGREDIENTS, INGREDIENT);
+        return "SELECT ingredient_id FROM ingredients WHERE ingredient LIKE ?;";
     }
 
     static String getMealIdByMealName(String mealName) {
         return MessageFormat.format(
-                "SELECT {0} FROM {1} WHERE {2} LIKE ''{3}'';",
-                MEAL_ID, MEALS, MEAL, mealName);
+                "SELECT meal_id FROM meals WHERE meal LIKE ''{0}'';", mealName);
     }
 
     static String getMealsAndIngredients() {
-        return MessageFormat.format(
-                "SELECT m.{0}, m.{1}, i.{2}, i.{3} " +
-                        "FROM {4} m " +
-                        "JOIN {5} i ON m.{3} = i.{3} " +
-                        "ORDER BY m.{3};",
-                MEAL, CATEGORY, INGREDIENT, MEAL_ID, MEALS, INGREDIENTS);
+        return "SELECT m.meal, m.category, i.ingredient, i.meal_id " +
+                "FROM meals m JOIN ingredients i ON m.meal_id = i.meal_id " +
+                "ORDER BY m.meal_id;";
     }
 
     static String getMealsAndIngredientsByCategory(String category) {
         return MessageFormat.format(
-                "SELECT m.{0}, m.{1}, i.{2}, i.{3} " +
-                        "FROM {4} m " +
-                        "JOIN {5} i ON m.{3} = i.{3} " +
-                        "WHERE m.{1} LIKE ''{6}'' " +
-                        "ORDER BY m.{3};",
-                MEAL, CATEGORY, INGREDIENT, MEAL_ID, MEALS, INGREDIENTS, category);
+                "SELECT m.meal, m.category, i.ingredient, i.meal_id " +
+                        "FROM meals m JOIN ingredients i ON m.meal_id = i.meal_id " +
+                        "WHERE m.category LIKE ''{0}'' ORDER BY m.meal_id;", category);
     }
 
-    static String getNumberOfMealsFromPlan() {
-        return MessageFormat.format(
-                "SELECT COUNT({0}) FROM {1};", MEAL, PLAN);
+    static String countMealsInPlan() {
+        return "SELECT COUNT(meal) FROM plan;";
     }
 
     static String getIngredientsAndCountFromPlan() {
-        // SELECT i.ingredient, COUNT(*) AS ingredient_count
-        // FROM ingredients i
-        //         JOIN meals m ON i.meal_id = m.meal_id
-        //         JOIN plan p ON m.meal_id = p.meal_id
-        // GROUP BY i.ingredient;
-        return MessageFormat.format(
-                "SELECT i.{0}, COUNT(*) AS count FROM {1} i " +
-                        "JOIN {2} m ON i.{3} = m.{3} " +
-                        "JOIN {4} p ON m.{3} = p.{3} " +
-                        "GROUP BY i.{0};",
-                INGREDIENT, INGREDIENTS, MEALS, MEAL_ID, PLAN);
+        return "SELECT i.ingredient, COUNT(*) AS count " +
+                "FROM ingredients i " +
+                "JOIN meals m ON i.meal_id = m.meal_id " +
+                "JOIN plan p ON m.meal_id = p.meal_id " +
+                "GROUP BY i.ingredient;";
     }
 
-    static String insertIntoMeals() {
+    @SuppressWarnings("SameParameterValue")
+    static String insertIntoTable(String tableName, String column1, String column2, String column3) {
         return MessageFormat.format(
                 "INSERT INTO {0} ({1}, {2}, {3}) VALUES (?, ?, ?);",
-                MEALS, CATEGORY, MEAL, MEAL_ID);
+                tableName, column1, column2, column3);
     }
 
-    static String insertIntoIngredients() {
-        return MessageFormat.format(
-                "INSERT INTO {0} ({1}, {2}, {3}) VALUES (?, ?, ?);",
-                INGREDIENTS, INGREDIENT, INGREDIENT_ID, MEAL_ID);
-    }
-
-    static String insertIntoPlan() {
-        return MessageFormat.format(
-                "INSERT INTO {0} ({1}, {2}, {3}) VALUES (?, ?, ?);",
-                PLAN, CATEGORY, MEAL, MEAL_ID);
-    }
-
-    static String createTablesIfNotExist() {
+    static String checkIfTableExists(String tableName) {
         return MessageFormat.format(
                 """
-                        CREATE TABLE IF NOT EXISTS {0} (
-                            {1} VARCHAR,
-                            {2} VARCHAR,
-                            {3} INTEGER,
-                            CONSTRAINT unique_meals UNIQUE ({2}, {3})
+                        SELECT EXISTS (
+                            SELECT 1
+                            FROM information_schema.tables
+                            WHERE table_schema = ''public''
+                                AND table_name = ''{0}''
                         );
-                                                
-                        CREATE TABLE IF NOT EXISTS {4} (
-                            {5} VARCHAR,
-                            {6} INTEGER,
-                            {3} INTEGER
-                        );
-                                                
-                        CREATE TABLE IF NOT EXISTS {7} (
-                            {1} VARCHAR,
-                            {2} VARCHAR,
-                            {3} INTEGER
-                        );
-                        """,
-                MEALS, CATEGORY, MEAL, MEAL_ID, INGREDIENTS,
-                INGREDIENT, INGREDIENT_ID, PLAN);
+                        """, tableName);
+    }
+
+    static String createMealsTable() {
+        return """
+                 CREATE TABLE IF NOT EXISTS meals (
+                     category VARCHAR,
+                     meal VARCHAR,
+                     meal_id INTEGER
+                 );
+                """;
+    }
+
+    static String createIngredientsTable() {
+        return """
+                CREATE TABLE IF NOT EXISTS ingredients (
+                    ingredient VARCHAR,
+                    ingredient_id INTEGER,
+                    meal_id INTEGER
+                );
+                """;
+    }
+
+    static String createPlanTable() {
+        return """
+                CREATE TABLE IF NOT EXISTS plan (
+                    category VARCHAR,
+                    meal VARCHAR,
+                    meal_id INTEGER
+                );
+                """;
     }
 }

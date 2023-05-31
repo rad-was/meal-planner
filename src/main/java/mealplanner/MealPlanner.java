@@ -11,16 +11,13 @@ import java.sql.*;
 import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Scanner;
 
 public class MealPlanner {
     public void run() {
         Connection connection = DbConnection.connect();
-        try {
-            connection.createStatement().executeUpdate(SQLQueries.createTablesIfNotExist());
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        createTablesIfNotExists();
 
         Scanner scanner = new Scanner(System.in);
         while (true) {
@@ -38,7 +35,7 @@ public class MealPlanner {
                 // Check if weekly plan was created
                 try {
                     ResultSet numberOfMealsQuery =
-                            connection.createStatement().executeQuery(SQLQueries.getNumberOfMealsFromPlan());
+                            connection.createStatement().executeQuery(SQLQueries.countMealsInPlan());
                     if (numberOfMealsQuery.next()) {
                         int numberOfMeals = numberOfMealsQuery.getInt("count");
                         if (numberOfMeals == (3 * 7)) {  // 3 meals every day of the week
@@ -66,6 +63,30 @@ public class MealPlanner {
                 }
                 Printer.printMealsByCategory(category);
             }
+        }
+        DbConnection.finalize(connection);
+    }
+
+    private void createTablesIfNotExists() {
+        Connection connection = DbConnection.connect();
+        try {
+            for (String table : List.of("meals", "ingredients", "plan")) {
+                ResultSet rs = connection.createStatement().executeQuery(SQLQueries.checkIfTableExists(table));
+                if (rs.next()) {
+                    if (!rs.getBoolean("exists")) {
+                        switch (table) {
+                            case "meals" ->
+                                    connection.createStatement().executeUpdate(SQLQueries.createMealsTable());
+                            case "ingredients" ->
+                                    connection.createStatement().executeUpdate(SQLQueries.createIngredientsTable());
+                            case "plan" ->
+                                    connection.createStatement().executeUpdate(SQLQueries.createPlanTable());
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
         DbConnection.finalize(connection);
     }
@@ -99,7 +120,7 @@ public class MealPlanner {
 
                             // Check if meal name is in database
                             PreparedStatement nameCheck =
-                                    connection.prepareStatement(SQLQueries.getNumberOfMealsByName());
+                                    connection.prepareStatement(SQLQueries.countMealsByName());
                             nameCheck.setString(1, mealName);
                             ResultSet numberOfNames = nameCheck.executeQuery();
                             numberOfNames.next();
@@ -110,8 +131,9 @@ public class MealPlanner {
                             }
                         }
 
-                        PreparedStatement insertStatement =
-                                connection.prepareStatement(SQLQueries.insertIntoPlan());
+                        PreparedStatement insertStatement = connection.prepareStatement(SQLQueries.insertIntoTable(
+                                "plan", "category", "meal", "meal_id"));
+
                         insertStatement.setString(1, mealCategory);
                         insertStatement.setString(2, mealName);
 
@@ -119,7 +141,7 @@ public class MealPlanner {
                                 .executeQuery(SQLQueries.getMealIdByMealName(mealName));
                         int mealId;
                         if (mealIdQuery.next()) {
-                            mealId = mealIdQuery.getInt(SQLQueries.MEAL_ID);
+                            mealId = mealIdQuery.getInt("meal_id");
                         } else {
                             throw new RuntimeException();
                         }
@@ -188,7 +210,7 @@ public class MealPlanner {
         }
 
         int mealCount = 0;
-        try (ResultSet rs = connection.createStatement().executeQuery(SQLQueries.getNumberOfMeals())) {
+        try (ResultSet rs = connection.createStatement().executeQuery(SQLQueries.countMeals())) {
             if (rs.next()) {
                 mealCount = rs.getInt(1);
             }
@@ -197,8 +219,11 @@ public class MealPlanner {
         }
 
         int ingredientId;
-        try (PreparedStatement mealStmt = connection.prepareStatement(SQLQueries.insertIntoMeals());
-             PreparedStatement ingredientStmt = connection.prepareStatement(SQLQueries.insertIntoIngredients())) {
+        try {
+            PreparedStatement mealStmt = connection.prepareStatement(SQLQueries.insertIntoTable(
+                    "meals", "category", "meal", "meal_id"));
+            PreparedStatement ingredientStmt = connection.prepareStatement(SQLQueries.insertIntoTable(
+                    "ingredients", "ingredient", "ingredient_id", "meal_id"));
 
             mealStmt.setString(1, mealCategory.toLowerCase());
             mealStmt.setString(2, mealName.toLowerCase());
@@ -222,7 +247,7 @@ public class MealPlanner {
                     } else {
                         // Generate a new ingredient_id
                         ResultSet ingredientCountResult = connection.createStatement()
-                                .executeQuery(SQLQueries.getNumberOfIngredients());
+                                .executeQuery(SQLQueries.countIngredients());
                         int ingredientCount = 0;
                         if (ingredientCountResult.next()) {
                             ingredientCount = ingredientCountResult.getInt(1);
@@ -253,7 +278,7 @@ public class MealPlanner {
             ResultSet ingredientAndCountQuery = connection.createStatement()
                     .executeQuery(SQLQueries.getIngredientsAndCountFromPlan());
             while (ingredientAndCountQuery.next()) {
-                String ingredient = ingredientAndCountQuery.getString(SQLQueries.INGREDIENT);
+                String ingredient = ingredientAndCountQuery.getString("ingredient");
                 int ingredientCount = ingredientAndCountQuery.getInt("count");
 
                 if (ingredientCount == 1) {
