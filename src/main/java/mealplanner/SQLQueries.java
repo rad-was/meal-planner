@@ -80,30 +80,30 @@ class SQLQueries {
 
     static String createMealsTable() {
         return """
-                 CREATE TABLE IF NOT EXISTS meals (
-                     category VARCHAR,
-                     meal VARCHAR,
-                     meal_id INTEGER
+                 CREATE TABLE meals (
+                     category VARCHAR(10) NOT NULL,
+                     meal VARCHAR(50) NOT NULL,
+                     meal_id INT NOT NULL
                  );
                 """;
     }
 
     static String createIngredientsTable() {
         return """
-                CREATE TABLE IF NOT EXISTS ingredients (
-                    ingredient VARCHAR,
-                    ingredient_id INTEGER,
-                    meal_id INTEGER
+                CREATE TABLE ingredients (
+                    ingredient VARCHAR(50) NOT NULL,
+                    ingredient_id INT NOT NULL,
+                    meal_id INT NOT NULL
                 );
                 """;
     }
 
     static String createPlanTable() {
         return """
-                CREATE TABLE IF NOT EXISTS plan (
-                    category VARCHAR,
-                    meal VARCHAR,
-                    meal_id INTEGER
+                CREATE TABLE plan (
+                    category VARCHAR(10) NOT NULL,
+                    meal VARCHAR(50) NOT NULL,
+                    meal_id INT NOT NULL
                 );
                 """;
     }
