@@ -90,8 +90,8 @@ public class Printer {
             ResultSet rs = connection.createStatement().executeQuery(SQLQueries.getCategoriesMealsFromPlan());
             int dayCounter = 1;
             while (rs.next()) {
-                String category = rs.getString("category");
-                String meal = rs.getString("meal");
+                String category = rs.getString("meal_category");
+                String meal = rs.getString("meal_name");
 
                 if (category.equalsIgnoreCase("breakfast")) {
                     System.out.println();
