@@ -11,10 +11,8 @@ The Meal Planner Application is a Java program that allows users to save and man
 ### How to Use
 - Set up the Postgres database and configure the database connection in the application.
 - Open a terminal or command prompt and navigate to the project directory.
-- Build the project using the following command:
-`mvn clean install`
-- Once the build is successful, run the application with the following command:
-`mvn exec:java -Dexec.mainClass="mealplanner.MealPlanner"`
+- Run the application with the following command:
+`java -jar target/meal-planner-1.0-SNAPSHOT-jar-with-dependencies.jar`
 - The application will launch and display the menu in the terminal.
 - Use the available commands to add new meals, show meals, filter by category, plan meals, and generate the shopping list.
 - Follow the prompts and instructions provided by the application to interact with the various features.
