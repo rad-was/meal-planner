@@ -15,6 +15,11 @@ import java.util.List;
 import java.util.Scanner;
 
 public class MealPlanner {
+    public static void main(String[] args) {
+        MealPlanner mealPlanner = new MealPlanner();
+        mealPlanner.run();
+    }
+
     public void run() {
         Connection connection = DbConnection.connect();
         createTablesIfNotExists();

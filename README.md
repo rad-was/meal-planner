@@ -14,7 +14,7 @@ The Meal Planner Application is a Java program that allows users to save and man
 - Build the project using the following command:
 `mvn clean install`
 - Once the build is successful, run the application with the following command:
-`mvn exec:java -Dexec.mainClass="Main"`
+`mvn exec:java -Dexec.mainClass="mealplanner.MealPlanner"`
 - The application will launch and display the menu in the terminal.
 - Use the available commands to add new meals, show meals, filter by category, plan meals, and generate the shopping list.
 - Follow the prompts and instructions provided by the application to interact with the various features.
