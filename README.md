@@ -9,10 +9,14 @@ The Meal Planner Application is a Java program that allows users to save and man
 - **Generate Shopping List:** The application generates a shopping list containing all the required ingredients for the planned meals. The shopping list is saved to a file along with the weekly meal plan, making it convenient for users to reference when shopping for ingredients.
 
 ### How to Use
-- Set up the Postgres database and configure the database connection in the application.
-- Open a terminal or command prompt and navigate to the project directory.
-- Run the application with the following command:
-`java -jar target/meal-planner-1.0-SNAPSHOT-jar-with-dependencies.jar`
+- Make sure you have Docker and a JDK installed.
+- Navigate to the project directory.
+- Build the Docker image and start the database container:
+`docker-compose up -d`
+- Wait for the Docker container to start, then run the application with the following command:
+`java -jar target/*-jar-with-dependencies.jar`
 - The application will launch and display the menu in the terminal.
 - Use the available commands to add new meals, show meals, filter by category, plan meals, and generate the shopping list.
 - Follow the prompts and instructions provided by the application to interact with the various features.
+- To stop the container, enter:
+`docker-compose stop`
